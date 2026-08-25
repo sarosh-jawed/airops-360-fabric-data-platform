@@ -1,8 +1,8 @@
-\# AirOps 360 Roadmap
+﻿\# AirOps 360 Roadmap
 
 
 
-\## Phase 1 — Foundation
+\## Phase 1 â€” Foundation
 
 
 
@@ -18,7 +18,7 @@
 
 
 
-\## Phase 2 — Bronze
+\## Phase 2 â€” Bronze
 
 
 
@@ -32,7 +32,7 @@
 
 
 
-\## Phase 3 — Silver
+\## Phase 3 â€” Silver
 
 
 
@@ -50,7 +50,7 @@
 
 
 
-\## Phase 4 — Gold
+\## Phase 4 â€” Gold
 
 
 
@@ -66,7 +66,7 @@
 
 
 
-\## Phase 5 — Production Engineering
+\## Phase 5 â€” Production Engineering
 
 
 
@@ -86,7 +86,7 @@
 
 
 
-\## Phase 6 — Analytics
+\## Phase 6 â€” Analytics
 
 
 
@@ -100,7 +100,7 @@
 
 
 
-\## Phase 7 — Portfolio Release
+\## Phase 7 â€” Portfolio Release
 
 
 
@@ -115,4 +115,5 @@
 \- \[ ] Document incremental run
 
 \- \[ ] Add final project retrospective
+
 
