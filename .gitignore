@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+
+# Secrets
+.env
+.env.*
+!.env.example
+secrets/
+*.key
+*.pem
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Large/raw datasets
+data/raw/
+data/processed/
+*.csv
+*.parquet
+*.zip
+*.jsonl
+
+# Power BI binary files
+*.pbix
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
