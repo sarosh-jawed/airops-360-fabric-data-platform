@@ -37,6 +37,7 @@ flowchart LR
         IF["BTS ingestion adapter<br/>Pipeline / Notebook"]
         IW["Weather ingestion notebook<br/>Python requests"]
         CFG["Versioned configuration<br/>load period + airport scope"]
+        CONTRACT["Versioned data contract<br/>schema + keys + timezone rules"]
     end
 
     subgraph BRZ["Bronze Lakehouse - lh_airops_bronze"]
@@ -77,6 +78,7 @@ flowchart LR
     BTS --> PL
     WX --> PL
     CFG --> PL
+    CONTRACT --> PL
     PL --> IF
     PL --> IW
     IF --> BF
@@ -100,6 +102,7 @@ flowchart LR
     DC --> SM
     SM --> PBI
 
+    CONTRACT -.-> DQ
     DQ -.-> SLV
     DQ -.-> GLD
     REC -.-> BRZ
@@ -190,6 +193,7 @@ Planned parameters:
 | `p_month` | `06` | Target month |
 | `p_load_mode` | `incremental` | Historical or incremental execution |
 | `p_run_id` | generated | End-to-end traceability |
+| `p_contract_version` | `0.1` | Data-contract version applied to the run |
 
 ### Pipeline sequence
 
@@ -214,6 +218,20 @@ flowchart TD
 ```
 
 Gold publication is gated. Critical quality or reconciliation failures prevent a bad batch from being treated as successfully published.
+
+### Contract-driven execution rules
+
+The accepted data contract in `docs/DATA_CONTRACT.md` is an executable design input, not only documentation. The pipeline must apply the following contract rules consistently:
+
+- BTS batch identity: `source_name + load_year + load_month`
+- Weather batch identity: `source_name + airport_code + load_year + load_month + variable_set_version`
+- Flight business key: deterministic hash of the approved canonical flight fields, pending profiling validation
+- Weather observation key: `airport_code + observation_local_timestamp`
+- Time alignment: preserve BTS local schedule fields and align weather using airport-local IANA time zones
+- Schema evolution: required-field or grain-breaking changes fail safely rather than being silently reinterpreted
+- Lineage: every run carries `run_id`, `contract_version`, source/batch identity, row counts, timestamps, status, and reproducible parameters
+
+These rules tighten the relationship between architecture, data contracts, quality gates, and incremental processing.
 
 ## 7. Bronze design
 

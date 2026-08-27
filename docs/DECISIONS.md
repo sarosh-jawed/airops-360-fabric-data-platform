@@ -99,4 +99,44 @@ Weather enrichment will initially cover approximately 15 high-volume airports.
 Reason:
 
 This provides sufficient analytical value while keeping API usage, processing cost, and development complexity manageable.
+---
 
+## ADR-005 - Deterministic incremental loading and idempotent reruns
+
+Status: Accepted
+
+Decision:
+
+Treat year and month as the BTS incremental boundary, use deterministic source batch keys, derive a deterministic flight key in Silver, and use merge/upsert behavior in Gold so rerunning an unchanged batch does not create duplicate business records.
+
+Reason:
+
+The portfolio must demonstrate production-style incremental loading, traceability, reconciliation, and safe reruns rather than simple append-only notebook processing.
+
+---
+
+## ADR-006 - Data contracts govern ingestion and transformation behavior
+
+Status: Accepted
+
+Decision:
+
+Use `docs/DATA_CONTRACT.md` as the governing contract for required source fields, source grain, batch identity, key semantics, lineage metadata, time-zone handling, schema evolution, and validation behavior.
+
+Reason:
+
+Making the contract an explicit architecture input prevents silent schema drift and keeps ingestion, quality checks, and downstream models reproducible.
+
+---
+
+## ADR-007 - Airport-local time is the canonical weather-alignment context
+
+Status: Accepted
+
+Decision:
+
+Preserve BTS schedule values as local source time and align weather observations using the origin airport's controlled IANA time zone and scheduled departure hour.
+
+Reason:
+
+BTS schedule fields are local-time values. Explicit airport-local alignment avoids incorrect UTC assumptions and makes flight-weather enrichment reproducible.

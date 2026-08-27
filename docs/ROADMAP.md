@@ -1,4 +1,4 @@
-﻿\# AirOps 360 Roadmap
+\# AirOps 360 Roadmap
 
 
 
@@ -10,8 +10,7 @@
 
 \- \[x] Define project requirements and scope
 
-\- \[ ] Create architecture v0.1
-
+- [x] Create architecture v0.1
 \- \[ ] Profile BTS dataset
 
 \- \[ ] Finalize airport/weather scope
@@ -115,5 +114,39 @@
 \- \[ ] Document incremental run
 
 \- \[ ] Add final project retrospective
+---
 
+## Week 2-3 Issue Board
 
+### Week 2 - Source validation and Bronze foundation
+
+- [ ] #2 Acquire and profile BTS flight-performance dataset
+  - Validate required columns, data types, null rates, source row count, and provisional flight-key uniqueness.
+  - Rank origin airports by flight volume.
+- [ ] #3 Define airport reference dataset and weather scope
+  - Freeze the approximately 15-airport MVP scope after profiling.
+  - Store airport code, name, latitude, longitude, IANA time zone, rank, and active flag.
+- [ ] #4 Implement Bronze BTS ingestion
+  - Land April and May historical files using the documented Bronze path convention.
+  - Capture run ID, contract version, batch key, source metadata, source count, and ingestion status.
+
+### Week 3 - Weather, Silver quality, and incremental controls
+
+- [ ] #5 Implement Open-Meteo historical weather ingestion
+  - Use airport-local IANA time zones and the versioned weather-variable set.
+  - Preserve raw responses and reproducible request parameters.
+- [ ] #6 Implement Silver flight standardization and quality checks
+  - Standardize types and identifiers, derive scheduled departure hour, generate the deterministic flight key, deduplicate, and quarantine invalid rows.
+- [ ] #7 Design Gold dimensional model
+  - Confirm fact grain and dimension keys against profiled source behavior before physical implementation.
+- [ ] #8 Implement incremental load and reconciliation framework
+  - Demonstrate June incremental processing, idempotent rerun behavior, source-to-Silver-to-Gold reconciliation, and operational audit metrics.
+
+### Week 2-3 exit criteria
+
+- Source assumptions in the data contract are validated or explicitly amended.
+- The controlled airport reference is versioned.
+- Bronze flight and weather ingestion are reproducible and auditable.
+- Silver rejects and duplicate handling are measurable.
+- June can be rerun without duplicate Gold business records.
+- Reconciliation metrics explain accepted, rejected, duplicate, matched, unmatched, and published populations.
