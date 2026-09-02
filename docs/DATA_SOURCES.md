@@ -20,7 +20,48 @@
 
 **Purpose:** Hourly historical weather enrichment for selected airports.
 
-**Project airport scope:** Approximately 15 high-volume airports represented in the flight dataset. The final airport list will be established after BTS source profiling.
+**Project airport scope (v0.1):** The weather-enrichment scope is frozen to the top 15 origin airports observed in the April 2026 BTS Reporting Carrier On-Time Performance profile.
+
+**Selection evidence:** `docs/profiling/BTS_2026_04_PROFILE.md`
+
+**Airport reference configuration:** `config/airports_v0.1.csv`
+
+The v0.1 airport scope is:
+
+1. ORD
+2. ATL
+3. DFW
+4. DEN
+5. PHX
+6. LAX
+7. CLT
+8. LAS
+9. MCO
+10. SEA
+11. BOS
+12. SFO
+13. DCA
+14. LGA
+15. DTW
+
+The ranking is based on April 2026 BTS origin-flight counts in descending order.
+
+Each configured airport includes:
+
+- IATA airport code
+- decimal-degree latitude
+- decimal-degree longitude
+- IANA timezone
+- April origin-volume rank
+- active flag
+
+Coordinates are used for Open-Meteo weather requests.
+
+IANA timezones are required because BTS scheduled and actual flight times are airport-local. Weather observations must therefore be aligned to the airport's local time before UTC normalization or flight-weather joining.
+
+All 15 airports are active in scope v0.1.
+
+Future airport additions, removals, or deactivations must be explicit configuration changes supported by profiling or project-scope evidence. Airport scope must not change silently between pipeline runs.
 
 **Contracted weather variables:**
 

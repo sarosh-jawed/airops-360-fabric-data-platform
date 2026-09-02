@@ -30,6 +30,7 @@ Thumbs.db
 data/raw/
 data/processed/
 *.csv
+!config/*.csv
 *.parquet
 *.zip
 *.jsonl
