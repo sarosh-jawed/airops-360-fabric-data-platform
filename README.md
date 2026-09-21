@@ -4,7 +4,7 @@
 
 AirOps 360 is an end-to-end data engineering portfolio project that combines U.S. airline operational-performance data with historical weather data to analyze flight reliability, airport performance, carrier performance, and weather-related disruption.
 
-> **Current status:** Bronze ingestion implemented and validated in Microsoft Fabric. Gold dimensional design is complete; Silver transformation and Gold physical build are next.
+> **Current status:** Bronze ingestion and the scoped April 2026 Silver pipeline are implemented and validated in Microsoft Fabric. Gold dimensional design is complete; physical Gold tables and Direct Lake / Power BI are not yet implemented.
 
 ---
 
@@ -16,15 +16,19 @@ AirOps 360 is an end-to-end data engineering portfolio project that combines U.S
 | Airport/weather scope | Complete | Versioned top-15 airport configuration with IATA code, coordinates, IANA timezone, rank, and active flag |
 | Bronze design | Complete | Versioned ingestion contract, deterministic batch identity, lineage metadata, audit model, rerun behavior, retry rules |
 | Fabric Bronze environment | Complete | `AirOps 360` workspace, `lh_airops_bronze` Lakehouse, raw/reference paths, Bronze Delta tables |
-| BTS Bronze ingestion | Complete | 597,919 April flight rows loaded; 110 source + 10 lineage columns; metadata-null count 0 |
+| BTS Bronze ingestion | Complete | 597,919 April flight rows loaded; 110 source + 10 lineage columns; required metadata nulls 0 |
 | BTS idempotent rerun | Complete | Rerun preserved 597,919 business rows; source hash unchanged; duplicate business-key groups 0 |
 | Open-Meteo Bronze pilot | Complete | ORD + ATL, April 2026; 720 hourly observations per airport; 2 raw JSON files; 2 Bronze response rows |
-| Gold dimensional model | Design complete | `fact_flight_performance`, `dim_date`, `dim_airport`, `dim_carrier`, `ops_load_audit` documented |
-| Silver transformation | Not started | Planned for the next implementation phase |
-| Gold physical build | Not started | Design exists; Delta tables are not yet implemented |
-| Direct Lake / Power BI | Not started | Planned after Gold implementation |
+| Silver flight standardization | Complete | 597,919 Bronze rows -> 597,919 standardized rows; required date/type/lineage validation passed |
+| Silver flight key + DQ gate | Complete | 597,919 accepted; 0 quarantine; 597,919 distinct deterministic `flight_key`; 0 key-recompute mismatches |
+| Silver hourly weather | Complete | 2 Bronze API responses -> 1,440 hourly rows; ATL 720 + ORD 720; unique deterministic airport-hour grain |
+| Silver flight-weather enrichment | Complete | 597,919 accepted flights -> 597,919 enriched flights; 0 duplicate flight groups; 59,813/59,813 pilot-origin flights matched |
+| Silver end-to-end validation | Complete | 16 persisted release checks all PASS in `slv_week4_validation_metrics` |
+| Gold dimensional model | Design complete | `fact_flight_performance`, `dim_date`, `dim_airport`, `dim_carrier`, and load/audit concepts documented |
+| Gold physical build | Not started | Design exists; physical Gold Delta tables are not yet implemented |
+| Direct Lake / Power BI | Not started | Planned after a validated minimal Gold serving path |
 
-This README intentionally distinguishes **implemented**, **validated**, and **planned** work.
+This README intentionally distinguishes **implemented**, **validated**, **designed**, and **planned** work.
 
 ---
 
@@ -41,17 +45,29 @@ BTS Reporting Carrier On-Time Performance        Open-Meteo Historical API
                                        |
                                        v
                                   Silver Layer
-                     standardized + quality-controlled
+                standardized + DQ + deterministic keys
+                                       |
+                          +------------+------------+
+                          |                         |
+                          v                         v
+                  validated flights          hourly weather
+                          |                         |
+                          +------------+------------+
+                                       |
+                                       v
+                           cardinality-safe enrichment
                                        |
                                        v
                                    Gold Layer
                          dimensional analytical model
+                         (design complete, build pending)
                                        |
                                        v
                               Direct Lake / Power BI
+                                   (planned)
 ```
 
-The detailed architecture is maintained in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+Detailed architecture: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 
 ---
 
@@ -60,17 +76,19 @@ The detailed architecture is maintained in [`docs/ARCHITECTURE.md`](docs/ARCHITE
 ### Microsoft Fabric objects
 
 - Workspace: `AirOps 360`
-- Lakehouse: `lh_airops_bronze`
-- Fabric notebooks executed:
+- Bronze Lakehouse: `lh_airops_bronze`
+- Bronze notebooks:
   - `nb_bronze_environment_setup`
   - `nb_bronze_ingest_bts`
   - `nb_bronze_ingest_weather`
 
 ### Bronze Delta tables
 
-- `brz_bts_flights`
-- `brz_weather_api_raw`
-- `brz_ingestion_audit`
+```text
+brz_bts_flights
+brz_weather_api_raw
+brz_ingestion_audit
+```
 
 ### Raw/reference paths
 
@@ -80,89 +98,210 @@ Files/raw/weather/airport=<AIRPORT>/year=YYYY/month=MM/
 Files/reference/airports/airports_v0.1.csv
 ```
 
+### Verified Bronze baseline
+
+```text
+BTS April rows:                    597,919
+BTS source columns:                110
+Bronze columns:                    120
+Required Bronze metadata nulls:    0
+Idempotent rerun rows before:      597,919
+Idempotent rerun rows after:       597,919
+
+Weather pilot:                     ORD, ATL
+Expected/observed hours per site:  720
+Raw JSON files:                    2
+Bronze weather response rows:      2
+```
+
+Detailed Bronze evidence: [`docs/ingestion/WEEK3_BRONZE_EVIDENCE.md`](docs/ingestion/WEEK3_BRONZE_EVIDENCE.md)
+
+Bronze operations: [`docs/ingestion/BRONZE_OPERATIONS_RUNBOOK.md`](docs/ingestion/BRONZE_OPERATIONS_RUNBOOK.md)
+
 ---
 
-## Verified Week 3 run evidence
+## Silver implementation
 
-### April 2026 BTS
+### Microsoft Fabric objects
 
-Source profile:
+- Silver Lakehouse: `lh_airops_silver`
+- Silver notebooks:
+  - `nb_silver_standardize_flights`
+  - `nb_silver_flight_key_dq_gate`
+  - `nb_silver_normalize_weather`
+  - `nb_silver_enrich_flights_weather`
+  - `nb_silver_end_to_end_validation`
 
-```text
-Rows:                  597,919
-Source columns:        110
-Required fields:       20 / 20 present
-FlightDate failures:   0
-Rows outside April:    0
-Candidate-key nulls:   0
-Duplicate key groups:  0
-```
-
-Initial Bronze load:
+### Silver tables
 
 ```text
-Bronze rows:           597,919
-Bronze columns:        120
-                       = 110 source + 10 lineage/ingestion columns
-Metadata nulls:        0
-Source/Bronze match:   PASS
+slv_flights
+slv_flights_validated
+slv_flights_quarantine
+slv_flights_dq_metrics
+slv_weather_hourly
+slv_flights_weather_enriched
+slv_flights_weather_enrichment_metrics
+slv_week4_validation_metrics
 ```
 
-Idempotent rerun:
+---
+
+## Verified Week 4 Silver evidence
+
+### Flights
 
 ```text
-Rows before:           597,919
-Rows after:            597,919
-Source hash:           unchanged
-Duplicate key groups:  0
-Business state:        unchanged
-Execution metadata:    new run_id / load_id
-Result:                PASS
+Bronze flight rows:              597,919
+Standardized Silver rows:        597,919
+Accepted Silver rows:            597,919
+Quarantine rows:                 0
+Distinct flight_key:             597,919
+Flight-key recompute mismatches: 0
+Required accepted-lineage nulls: 0
 ```
 
-### Open-Meteo pilot
-
-Scope:
+`flight_key_v1` is a deterministic SHA-256 identity built from the canonical scheduled-flight business key:
 
 ```text
-Airports:              ORD, ATL
-Period:                2026-04-01 through 2026-04-30
-Expected hourly rows:  720 per airport
-Observed hourly rows:  720 per airport
-Raw JSON files:        2
-Bronze response rows:  2
-Metadata nulls:        0
-Result:                PASS
+flight_date
++ reporting_airline
++ flight_number
++ origin
++ dest
++ crs_dep_time_hhmm
 ```
 
-The Bronze weather table intentionally stores one raw API response per airport/month batch. Hourly normalization is a Silver responsibility.
+The core reconciliation is:
 
-Detailed evidence: [`docs/ingestion/WEEK3_BRONZE_EVIDENCE.md`](docs/ingestion/WEEK3_BRONZE_EVIDENCE.md)
+```text
+597,919 Bronze
+=
+597,919 accepted
++
+0 quarantine
+```
 
-Operational procedure: [`docs/ingestion/BRONZE_OPERATIONS_RUNBOOK.md`](docs/ingestion/BRONZE_OPERATIONS_RUNBOOK.md)
+### Weather
+
+Current validated pilot:
+
+```text
+Airports: ORD, ATL
+Period:   April 2026
+```
+
+Evidence:
+
+```text
+Bronze weather responses:        2
+Silver hourly weather rows:      1,440
+ATL hourly rows:                 720
+ORD hourly rows:                 720
+Distinct weather_key:            1,440
+Duplicate local airport-hours:   0
+Duplicate UTC airport-hours:     0
+Weather-key recompute mismatches:0
+Required weather-value NULLs:    0
+```
+
+Silver weather grain:
+
+```text
+one airport + one local observation hour
+```
+
+### Weather-to-flight enrichment
+
+Join contract:
+
+```text
+flight origin + scheduled local departure hour
+    ->
+weather airport + local observation hour
+```
+
+Evidence:
+
+```text
+Accepted rows before join:         597,919
+Enriched rows after join:          597,919
+Distinct flight_key after join:    597,919
+Duplicate flight groups after:     0
+
+ORD/ATL origin flights:            59,813
+ORD/ATL matched flights:           59,813
+ORD/ATL unmatched flights:         0
+Outside-pilot flights preserved:   538,106
+
+Wrong-airport matches:             0
+Wrong-hour matches:                0
+```
+
+The enrichment uses a LEFT JOIN. Flights outside the current ORD/ATL weather pilot remain in the dataset with NULL weather columns.
+
+The validated grain invariant is:
+
+```text
+1 accepted flight_key -> at most 1 origin weather row
+```
+
+### Independent Silver release gate
+
+`nb_silver_end_to_end_validation` independently re-read the persisted Bronze/Silver tables, recomputed deterministic keys, rechecked uniqueness and cardinality, and published 16 PASS checks to:
+
+```text
+slv_week4_validation_metrics
+```
+
+Validation version:
+
+```text
+week4_silver_validation_v1
+```
+
+Final result:
+
+```text
+TASK 27 STATUS: PASS
+```
+
+Detailed evidence: [`docs/silver/WEEK4_SILVER_EVIDENCE.md`](docs/silver/WEEK4_SILVER_EVIDENCE.md)
+
+Silver operations: [`docs/silver/SILVER_OPERATIONS_RUNBOOK.md`](docs/silver/SILVER_OPERATIONS_RUNBOOK.md)
 
 ---
 
 ## Reliability controls demonstrated
 
-AirOps currently demonstrates the following Bronze-layer controls:
+AirOps currently demonstrates:
 
 - deterministic logical `batch_key`
 - unique execution `run_id`
-- source-object attempt `load_id`
-- source hash for mutation detection
-- controlled batch replacement / MERGE behavior
-- idempotent reruns
-- source-to-Bronze row reconciliation
-- duplicate business-key validation
-- ingestion metadata validation
-- STARTED / SUCCEEDED / FAILED audit states
-- bounded retry for transient weather-API failures
-- preservation of raw weather JSON for reproducibility
+- source-object `load_id`
+- source hashing for mutation detection
+- idempotent Bronze reruns
+- source-to-target reconciliation
+- deterministic `flight_key`
+- deterministic `weather_key`
+- DQ quarantine accounting
+- lineage preservation
+- local/UTC weather-time handling
+- weather airport-hour uniqueness
+- pre-join uniqueness validation
+- cardinality-safe LEFT JOIN enrichment
+- explicit outside-pilot match status
+- post-join row-count and flight-grain validation
+- persisted transformation metrics
+- independent end-to-end Silver release validation
 
-The key reliability principle is:
+The central reliability principles are:
 
-> Rerunning the same logical batch may create new execution metadata, but it must not create a different logical business state or duplicate business records.
+> The same logical input should reproduce the same logical business state, even when execution metadata changes.
+
+and:
+
+> An enrichment must not silently change the grain of the dataset it enriches.
 
 ---
 
@@ -185,7 +324,7 @@ Dimensions:
 
 `dim_airport` is role-played through origin and destination foreign keys.
 
-Selected origin-weather measurements are planned to be carried at flight grain using origin airport + scheduled departure hour. A weather join must preserve one flight input row as one Gold flight row.
+The selected origin-weather measurements are designed to be carried at flight grain using the already validated Silver origin airport + scheduled departure-hour enrichment.
 
 See [`docs/modeling/GOLD_STAR_SCHEMA_V0.1.md`](docs/modeling/GOLD_STAR_SCHEMA_V0.1.md).
 
@@ -215,40 +354,40 @@ See [`docs/DATA_SOURCES.md`](docs/DATA_SOURCES.md).
 - [`docs/DATA_SOURCES.md`](docs/DATA_SOURCES.md) — source definitions and airport/weather scope
 - [`docs/profiling/BTS_2026_04_PROFILE.md`](docs/profiling/BTS_2026_04_PROFILE.md) — April BTS profiling evidence
 - [`docs/ingestion/BRONZE_INGESTION_DESIGN_V0.1.md`](docs/ingestion/BRONZE_INGESTION_DESIGN_V0.1.md) — Bronze ingestion design
-- [`docs/ingestion/WEEK3_BRONZE_EVIDENCE.md`](docs/ingestion/WEEK3_BRONZE_EVIDENCE.md) — verified Week 3 run evidence
-- [`docs/ingestion/BRONZE_OPERATIONS_RUNBOOK.md`](docs/ingestion/BRONZE_OPERATIONS_RUNBOOK.md) — operational rerun/reconciliation procedure
+- [`docs/ingestion/WEEK3_BRONZE_EVIDENCE.md`](docs/ingestion/WEEK3_BRONZE_EVIDENCE.md) — verified Week 3 Bronze evidence
+- [`docs/ingestion/BRONZE_OPERATIONS_RUNBOOK.md`](docs/ingestion/BRONZE_OPERATIONS_RUNBOOK.md) — Bronze operating procedure
+- [`docs/silver/WEEK4_SILVER_EVIDENCE.md`](docs/silver/WEEK4_SILVER_EVIDENCE.md) — verified Week 4 Silver evidence
+- [`docs/silver/SILVER_OPERATIONS_RUNBOOK.md`](docs/silver/SILVER_OPERATIONS_RUNBOOK.md) — Silver operating and recovery procedure
 - [`docs/modeling/GOLD_STAR_SCHEMA_V0.1.md`](docs/modeling/GOLD_STAR_SCHEMA_V0.1.md) — Gold star-schema design
-- [`docs/ROADMAP.md`](docs/ROADMAP.md) — current implementation roadmap
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — implementation roadmap
 
 ---
 
 ## Current limitations
 
-The following items are intentionally **not** claimed as implemented yet:
+The following items are intentionally **not** claimed as implemented:
 
-- Silver flight standardization and deduplication
-- Silver hourly weather normalization
-- weather-to-flight enrichment
 - physical Gold Delta tables
-- end-to-end Gold incremental loading
+- Gold incremental publication
 - Direct Lake semantic model
 - Power BI dashboard
-- Fabric Git integration / deployment pipeline implementation
-- automated CI test execution for the Fabric implementation
+- production multi-month flight/weather orchestration
+- Silver weather coverage for all configured top-15 airports
+- Fabric deployment pipeline implementation
+- production CI/CD
 
-Fabric screenshots are not part of this Week 3 documentation checkpoint. Run evidence and reconciliation results are documented textually; screenshots can be added in a later portfolio-release pass.
+The current validated Silver evidence is for **April 2026 flights** and the **ORD/ATL April weather pilot**.
 
 ---
 
 ## Next implementation phase
 
-1. Build Silver standardized flight data.
-2. Generate and validate deterministic `flight_key`.
-3. Normalize airport-hour weather from preserved Bronze JSON.
-4. Implement Silver data-quality and quarantine rules.
-5. Build Gold dimensions and `fact_flight_performance`.
-6. Reconcile accepted Silver business keys to Gold.
-7. Add Direct Lake / Power BI after Gold validation.
+1. Preserve the Week 4 Silver evidence and notebook in Git.
+2. Build one minimal validated Gold flight-performance serving path.
+3. Reconcile accepted Silver `flight_key` values into Gold.
+4. Connect the minimal Gold/semantic path to Power BI.
+5. Capture recruiter-ready Gold/BI evidence without weakening existing Silver controls.
+6. Expand scope only after the minimal end-to-end serving slice is validated.
 
 ---
 
