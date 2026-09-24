@@ -1,0 +1,4 @@
+metric,gold_value,silver_value,definition,status
+Total Flights,"597,919","597,919",All accepted scheduled flight rows,PASS
+Cancellation Rate,0.9035%,0.9035%,"5,402 cancelled / 597,919 scheduled flights",PASS
+Arrival Delay >=15 Rate,20.1989%,20.1989%,"119,417 delayed / 591,206 known arrival outcomes",PASS

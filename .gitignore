@@ -45,3 +45,6 @@ logs/
 # Temporary files
 tmp/
 temp/
+# Curated portfolio evidence
+!data/sample/gold_fact_sample_25.csv
+!docs/modeling/gold_kpi_release_results.csv
