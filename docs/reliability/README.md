@@ -10,10 +10,10 @@ The current Bronze operations runbook already describes these concepts in `docs/
 
 ## Run (Windows PowerShell)
 
-From this extracted folder:
+From the repository root:
 
 ```powershell
-py -3 .\reliability_quickcheck.py --out .\evidence
+py -3 .\tests\reliability\reliability_quickcheck.py --out "$env:TEMP\AirOps_Week7_Reliability"
 if ($LASTEXITCODE -ne 0) { throw 'Synthetic reliability quickcheck failed' }
 ```
 
@@ -29,7 +29,7 @@ The artificial fixture starts with one accepted flight. Attempt 1 stages an UPSE
 
 - **Prerequisite:** Python 3.9 or later and this extracted folder. Windows `py -3` launcher; on macOS/Linux use `python3`.
 - **Input:** One synthetic ORD to ATL flight, deterministic payload and SHA-256, stable `synthetic_airline_month|2026|04` logical batch.
-- **Command:** `py -3 .\reliability_quickcheck.py --out .\evidence`.
+- **Command:** `py -3 .\tests\reliability\reliability_quickcheck.py --out "$env:TEMP\AirOps_Week7_Reliability"`.
 - **Expected output:** 12/12 PASS, failure audit + retry audit, 1 accepted business row, unchanged business signature.
 - **Recovery if check fails:** Inspect `validation.json` and `audit.csv`; fix the local test, rerun to a fresh evidence directory. Do not touch a live Fabric table.
 - **Environment boundary:** Local SQLite here; Fabric notebooks live in the Fabric workspace; Docker validation for DotNetScope is a different application. This quickcheck is not a substitute for a Fabric/Spark/Delta end-to-end test.
@@ -48,6 +48,10 @@ The artificial fixture starts with one accepted flight. Attempt 1 stages an UPSE
 
 **Evidence and boundary (~20 s):** "The local test recorded FAILED then SUCCEEDED, preserved one business row and unchanged business fields, and passed all automated checks. This is a SQLite-based teaching proof, not evidence that my Fabric Delta job is transactionally safe under injected faults. I'd validate that separately in an isolated Fabric table before claiming production recovery."
 
-## Next action
+## Repository policy
 
-Keep the quickcheck outside your repository unless you decide its truthful local-demo scope adds value. If you commit it later, put the script in `tests/reliability/` and this guide in `docs/reliability/`, using a feature branch and a PR. Do not upload generated databases or run-specific audit IDs unless needed; `.gitignore` the evidence folder if moving it into the repo.
+The script is located at `tests/reliability/reliability_quickcheck.py`.
+Run the PowerShell command above from the repository root.
+
+Keep generated SQLite databases and execution evidence outside the repository.
+This is a local synthetic test, not a Fabric Delta integration test.
